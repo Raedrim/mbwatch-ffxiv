@@ -39,7 +39,9 @@ impl State {
         now: DateTime<Utc>,
         cooldown: Duration,
     ) -> bool {
-        let Some(e) = self.entries.get(key) else { return true };
+        let Some(e) = self.entries.get(key) else {
+            return true;
+        };
         if price < e.last_alerted_price {
             return true;
         }
@@ -48,8 +50,13 @@ impl State {
     }
 
     pub fn record(&mut self, key: String, price: u64, now: DateTime<Utc>) {
-        self.entries
-            .insert(key, Entry { last_alerted_price: price, last_alerted_at: now });
+        self.entries.insert(
+            key,
+            Entry {
+                last_alerted_price: price,
+                last_alerted_at: now,
+            },
+        );
     }
 
     pub fn get(&self, key: &str) -> Option<&Entry> {
@@ -59,8 +66,9 @@ impl State {
     /// Missing file → empty state.
     pub fn load(path: &Path) -> Result<State, StateError> {
         match std::fs::read(path) {
-            Ok(b) => serde_json::from_slice(&b)
-                .map_err(|e| StateError::Corrupt(path.to_path_buf(), e)),
+            Ok(b) => {
+                serde_json::from_slice(&b).map_err(|e| StateError::Corrupt(path.to_path_buf(), e))
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(State::default()),
             Err(e) => Err(e.into()),
         }
@@ -73,7 +81,10 @@ impl State {
         let mut tmp = path.as_os_str().to_owned();
         tmp.push(".tmp");
         let tmp = PathBuf::from(tmp);
-        std::fs::write(&tmp, serde_json::to_vec_pretty(self).expect("state serializes"))?;
+        std::fs::write(
+            &tmp,
+            serde_json::to_vec_pretty(self).expect("state serializes"),
+        )?;
         std::fs::rename(&tmp, path)?;
         Ok(())
     }
@@ -151,7 +162,10 @@ mod tests {
     #[test]
     fn missing_file_loads_empty() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(State::load(&dir.path().join("state.json")).unwrap(), State::default());
+        assert_eq!(
+            State::load(&dir.path().join("state.json")).unwrap(),
+            State::default()
+        );
     }
 
     #[test]
@@ -162,7 +176,8 @@ mod tests {
         s.record(State::key(1, true, 33), 1234, t(3));
         s.save(&p).unwrap();
         assert_eq!(State::load(&p).unwrap(), s);
-        let json: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
         let e = &json["entries"]["1:hq:33"];
         assert_eq!(e["last_alerted_price"], 1234);
         assert!(e["last_alerted_at"].is_string());

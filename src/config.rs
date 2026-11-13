@@ -164,7 +164,9 @@ impl Config {
         let cooldown = parse_duration(raw.cooldown.as_deref().unwrap_or(DEFAULT_COOLDOWN))?;
 
         if raw.watch.is_empty() {
-            return Err(ConfigError::Invalid("`watch` must contain at least one item".into()));
+            return Err(ConfigError::Invalid(
+                "`watch` must contain at least one item".into(),
+            ));
         }
         let mut watch = Vec::with_capacity(raw.watch.len());
         for w in raw.watch {
@@ -256,7 +258,10 @@ watch:
         assert_eq!(c.data_center, "Light");
         assert_eq!(c.poll_interval, Duration::from_secs(60));
         assert_eq!(c.cooldown, Duration::from_secs(6 * 3600));
-        assert_eq!(c.webhooks.discord.as_deref(), Some("https://discord.test/hook"));
+        assert_eq!(
+            c.webhooks.discord.as_deref(),
+            Some("https://discord.test/hook")
+        );
         assert_eq!(c.watch.len(), 2);
         assert_eq!(c.watch[0].alert_below, Some(1800));
         assert_eq!(c.watch[0].arbitrage_margin, Some(0.25));
@@ -277,7 +282,10 @@ watch:
         let y = VALID.replace("https://discord.test/hook", "${HOOK}");
         let env = |k: &str| (k == "HOOK").then(|| "https://expanded.test/x".to_string());
         let c = Config::from_yaml(&y, &env).unwrap();
-        assert_eq!(c.webhooks.discord.as_deref(), Some("https://expanded.test/x"));
+        assert_eq!(
+            c.webhooks.discord.as_deref(),
+            Some("https://expanded.test/x")
+        );
     }
 
     #[test]
@@ -297,23 +305,29 @@ watch:
             "home_world: A\ndata_center: B\n",
             "home_world: A\ndata_center: B\nwatch:\n  - alert_below: 1\n",
         ] {
-            assert!(matches!(
-                Config::from_yaml(y, &no_env),
-                Err(ConfigError::Yaml(_))
-            ), "{y}");
+            assert!(
+                matches!(Config::from_yaml(y, &no_env), Err(ConfigError::Yaml(_))),
+                "{y}"
+            );
         }
     }
 
     #[test]
     fn empty_watch_list_rejected() {
         let y = "home_world: A\ndata_center: B\nwatch: []\n";
-        assert!(matches!(Config::from_yaml(y, &no_env), Err(ConfigError::Invalid(_))));
+        assert!(matches!(
+            Config::from_yaml(y, &no_env),
+            Err(ConfigError::Invalid(_))
+        ));
     }
 
     #[test]
     fn item_without_any_rule_rejected() {
         let y = "home_world: A\ndata_center: B\nwatch:\n  - item: X\n";
-        assert!(matches!(Config::from_yaml(y, &no_env), Err(ConfigError::Invalid(_))));
+        assert!(matches!(
+            Config::from_yaml(y, &no_env),
+            Err(ConfigError::Invalid(_))
+        ));
     }
 
     #[test]
@@ -358,16 +372,20 @@ watch:
 
     #[test]
     fn telegram_config_parses() {
-        let y = format!(
-            "{VALID}"
-        )
-        .replace(
+        let y = VALID.replace(
             "  discord: \"https://discord.test/hook\"",
             "  telegram:\n    bot_token: tok\n    chat_id: \"42\"\n    api_base: http://tg.test",
         );
         let c = Config::from_yaml(&y, &no_env).unwrap();
         let t = c.webhooks.telegram.unwrap();
-        assert_eq!((t.bot_token.as_str(), t.chat_id.as_str(), t.api_base.as_str()), ("tok", "42", "http://tg.test"));
+        assert_eq!(
+            (
+                t.bot_token.as_str(),
+                t.chat_id.as_str(),
+                t.api_base.as_str()
+            ),
+            ("tok", "42", "http://tg.test")
+        );
         assert!(c.webhooks.discord.is_none());
     }
 

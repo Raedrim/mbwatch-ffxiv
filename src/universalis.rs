@@ -46,7 +46,10 @@ pub struct Scoped<T> {
 
 impl<T> Default for Scoped<T> {
     fn default() -> Self {
-        Scoped { world: None, dc: None }
+        Scoped {
+            world: None,
+            dc: None,
+        }
     }
 }
 
@@ -69,7 +72,11 @@ pub struct ItemAggregate {
 
 impl ItemAggregate {
     pub fn quality(&self, hq: bool) -> Option<&QualityStats> {
-        if hq { self.hq.as_ref() } else { self.nq.as_ref() }
+        if hq {
+            self.hq.as_ref()
+        } else {
+            self.nq.as_ref()
+        }
     }
 }
 
@@ -106,7 +113,10 @@ impl Client {
             .user_agent(USER_AGENT)
             .timeout(std::time::Duration::from_secs(30))
             .build()?;
-        Ok(Client { http, base_url: base_url.trim_end_matches('/').to_string() })
+        Ok(Client {
+            http,
+            base_url: base_url.trim_end_matches('/').to_string(),
+        })
     }
 
     async fn get_json<T: serde::de::DeserializeOwned>(
@@ -126,23 +136,27 @@ impl Client {
                     .and_then(|v| v.trim().parse().ok());
                 Err(UniversalisError::RateLimited { retry_after })
             }
-            _ if !status.is_success() => {
-                Err(UniversalisError::Status { status: status.as_u16(), url: url.to_string() })
-            }
+            _ if !status.is_success() => Err(UniversalisError::Status {
+                status: status.as_u16(),
+                url: url.to_string(),
+            }),
             _ => Ok(resp.json().await?),
         }
     }
 
     pub async fn worlds(&self) -> Result<Vec<World>, UniversalisError> {
-        self.get_json(&format!("{}/api/v2/worlds", self.base_url), &[]).await
+        self.get_json(&format!("{}/api/v2/worlds", self.base_url), &[])
+            .await
     }
 
     pub async fn data_centers(&self) -> Result<Vec<DataCenter>, UniversalisError> {
-        self.get_json(&format!("{}/api/v2/data-centers", self.base_url), &[]).await
+        self.get_json(&format!("{}/api/v2/data-centers", self.base_url), &[])
+            .await
     }
 
     pub async fn marketable(&self) -> Result<Vec<u32>, UniversalisError> {
-        self.get_json(&format!("{}/api/v2/marketable", self.base_url), &[]).await
+        self.get_json(&format!("{}/api/v2/marketable", self.base_url), &[])
+            .await
     }
 
     /// Stage 1: aggregated stats, automatically chunked into batches of <= 100 IDs.
@@ -154,7 +168,11 @@ impl Client {
         let scope = encode_segment(scope);
         let mut merged = AggregatedBatch::default();
         for chunk in ids.chunks(MAX_BATCH) {
-            let joined = chunk.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+            let joined = chunk
+                .iter()
+                .map(u32::to_string)
+                .collect::<Vec<_>>()
+                .join(",");
             let url = format!("{}/api/v2/aggregated/{scope}/{joined}", self.base_url);
             let batch: AggregatedBatch = self.get_json(&url, &[]).await?;
             merged.results.extend(batch.results);
@@ -175,7 +193,11 @@ impl Client {
             #[serde(default)]
             listings: Vec<Listing>,
         }
-        let url = format!("{}/api/v2/{}/{item_id}", self.base_url, encode_segment(scope));
+        let url = format!(
+            "{}/api/v2/{}/{item_id}",
+            self.base_url,
+            encode_segment(scope)
+        );
         let resp: Resp = self
             .get_json(
                 &url,
@@ -273,9 +295,14 @@ mod tests {
         assert_eq!(hq.daily_sale_velocity.dc.unwrap().quantity, 4.0);
         let nq = out.results[0].quality(false).unwrap();
         assert!(nq.median_listing.world.is_none()); // missing field tolerated
-        // item with empty nq and no hq at all
+                                                    // item with empty nq and no hq at all
         assert!(out.results[1].quality(true).is_none());
-        assert!(out.results[1].quality(false).unwrap().min_listing.world.is_none());
+        assert!(out.results[1]
+            .quality(false)
+            .unwrap()
+            .min_listing
+            .world
+            .is_none());
     }
 
     #[tokio::test]
@@ -289,7 +316,8 @@ mod tests {
                 let ids: Vec<u32> = last.split(',').map(|s| s.parse().unwrap()).collect();
                 assert!(ids.len() <= MAX_BATCH, "batch too big: {}", ids.len());
                 let results: Vec<_> = ids.iter().map(|i| json!({"itemId": i, "nq": {}})).collect();
-                ResponseTemplate::new(200).set_body_json(json!({"results": results, "failedItems": [ids[0] + 1000]}))
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"results": results, "failedItems": [ids[0] + 1000]}))
             })
             .expect(3)
             .mount(&server)
@@ -303,8 +331,16 @@ mod tests {
     #[tokio::test]
     async fn empty_id_list_makes_no_requests() {
         let server = MockServer::start().await;
-        Mock::given(method("GET")).respond_with(ResponseTemplate::new(200)).expect(0).mount(&server).await;
-        let out = Client::new(&server.uri()).unwrap().aggregated("Phoenix", &[]).await.unwrap();
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .mount(&server)
+            .await;
+        let out = Client::new(&server.uri())
+            .unwrap()
+            .aggregated("Phoenix", &[])
+            .await
+            .unwrap();
         assert!(out.results.is_empty());
     }
 
@@ -319,23 +355,44 @@ mod tests {
                 "fields",
                 "listings.pricePerUnit,listings.quantity,listings.worldName,listings.hq",
             ))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"listings": [
-                {"pricePerUnit": 1750, "quantity": 12, "worldName": "Ravana", "hq": true},
-                {"pricePerUnit": 1800, "quantity": 3, "worldName": "Phoenix", "hq": true}
-            ]})))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!({"listings": [
+                    {"pricePerUnit": 1750, "quantity": 12, "worldName": "Ravana", "hq": true},
+                    {"pricePerUnit": 1800, "quantity": 3, "worldName": "Phoenix", "hq": true}
+                ]})),
+            )
             .expect(1)
             .mount(&server)
             .await;
-        let l = Client::new(&server.uri()).unwrap().listings("Light", 36115, true).await.unwrap();
+        let l = Client::new(&server.uri())
+            .unwrap()
+            .listings("Light", 36115, true)
+            .await
+            .unwrap();
         assert_eq!(l.len(), 2);
-        assert_eq!(l[0], Listing { price_per_unit: 1750, quantity: 12, world_name: Some("Ravana".into()), hq: true });
+        assert_eq!(
+            l[0],
+            Listing {
+                price_per_unit: 1750,
+                quantity: 12,
+                world_name: Some("Ravana".into()),
+                hq: true
+            }
+        );
     }
 
     #[tokio::test]
     async fn http_404_maps_to_not_found() {
         let server = MockServer::start().await;
-        Mock::given(method("GET")).respond_with(ResponseTemplate::new(404)).mount(&server).await;
-        let e = Client::new(&server.uri()).unwrap().listings("Light", 1, false).await.unwrap_err();
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(404))
+            .mount(&server)
+            .await;
+        let e = Client::new(&server.uri())
+            .unwrap()
+            .listings("Light", 1, false)
+            .await
+            .unwrap_err();
         assert!(matches!(e, UniversalisError::NotFound(_)), "{e:?}");
     }
 
@@ -346,33 +403,69 @@ mod tests {
             .respond_with(ResponseTemplate::new(429).insert_header("retry-after", "7"))
             .mount(&server)
             .await;
-        let e = Client::new(&server.uri()).unwrap().aggregated("Phoenix", &[1]).await.unwrap_err();
-        assert!(matches!(e, UniversalisError::RateLimited { retry_after: Some(7) }), "{e:?}");
+        let e = Client::new(&server.uri())
+            .unwrap()
+            .aggregated("Phoenix", &[1])
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                e,
+                UniversalisError::RateLimited {
+                    retry_after: Some(7)
+                }
+            ),
+            "{e:?}"
+        );
     }
 
     #[tokio::test]
     async fn other_status_maps_to_status_error() {
         let server = MockServer::start().await;
-        Mock::given(method("GET")).respond_with(ResponseTemplate::new(503)).mount(&server).await;
-        let e = Client::new(&server.uri()).unwrap().marketable().await.unwrap_err();
-        assert!(matches!(e, UniversalisError::Status { status: 503, .. }), "{e:?}");
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(503))
+            .mount(&server)
+            .await;
+        let e = Client::new(&server.uri())
+            .unwrap()
+            .marketable()
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(e, UniversalisError::Status { status: 503, .. }),
+            "{e:?}"
+        );
     }
 
     #[tokio::test]
     async fn metadata_endpoints_parse() {
         let server = MockServer::start().await;
         Mock::given(path("/api/v2/worlds"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([{"id": 33, "name": "Phoenix"}])))
-            .mount(&server).await;
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(json!([{"id": 33, "name": "Phoenix"}])),
+            )
+            .mount(&server)
+            .await;
         Mock::given(path("/api/v2/data-centers"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(
-                json!([{"name": "Light", "region": "Europe", "worlds": [33, 21]}])))
-            .mount(&server).await;
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(
+                    json!([{"name": "Light", "region": "Europe", "worlds": [33, 21]}]),
+                ),
+            )
+            .mount(&server)
+            .await;
         Mock::given(path("/api/v2/marketable"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!([2, 3, 5])))
-            .mount(&server).await;
+            .mount(&server)
+            .await;
         let c = Client::new(&format!("{}/", server.uri())).unwrap(); // trailing slash tolerated
-        assert_eq!(c.worlds().await.unwrap(), vec![World { id: 33, name: "Phoenix".into() }]);
+        assert_eq!(
+            c.worlds().await.unwrap(),
+            vec![World {
+                id: 33,
+                name: "Phoenix".into()
+            }]
+        );
         assert_eq!(c.data_centers().await.unwrap()[0].worlds, vec![33, 21]);
         assert_eq!(c.marketable().await.unwrap(), vec![2, 3, 5]);
     }

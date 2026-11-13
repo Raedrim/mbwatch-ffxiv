@@ -1,0 +1,21 @@
+# mbwatch watchlist — copy to watchlist.yaml and edit.
+home_world: "Phoenix"
+data_center: "Light"
+poll_interval: "60s"   # accepts Ns, Nm, Nh
+cooldown: "6h"         # don't repeat an identical alert (same item/quality/world/price) within this window
+
+webhooks:
+  # ${VAR} references are expanded from the environment.
+  discord: "${DISCORD_WEBHOOK_URL}"
+  # telegram:
+  #   bot_token: "${TELEGRAM_BOT_TOKEN}"
+  #   chat_id: "${TELEGRAM_CHAT_ID}"
+
+watch:
+  - item: "Grade 2 Gemdraught of Strength"
+    hq: true
+    alert_below: 1800        # alert when the cheapest price on the DC drops below this
+    arbitrage_margin: 0.25   # alert if the cheapest DC world is >=25% cheaper than home_world
+  - item: "Moqueca"
+    hq: true
+    alert_below: 2200

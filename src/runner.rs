@@ -58,8 +58,10 @@ pub async fn update_db(
     let marketable: HashSet<u32> = client.marketable().await?.into_iter().collect();
     let names = fetch_item_names(items_url).await?;
 
-    let items: HashMap<u32, String> =
-        names.into_iter().filter(|(id, _)| marketable.contains(id)).collect();
+    let items: HashMap<u32, String> = names
+        .into_iter()
+        .filter(|(id, _)| marketable.contains(id))
+        .collect();
     let worlds = worlds.into_iter().map(|w| (w.id, w.name)).collect();
     let cache = Cache::new(items, worlds, data_centers);
     cache.save(cache_dir)?;
@@ -68,7 +70,10 @@ pub async fn update_db(
 
 /// Fetch a Teamcraft-style `items.json` (`{"<id>": {"en": "<name>", ...}}`).
 pub async fn fetch_item_names(url: &str) -> Result<HashMap<u32, String>, RunError> {
-    let err = |message: String| RunError::ItemDump { url: url.to_string(), message };
+    let err = |message: String| RunError::ItemDump {
+        url: url.to_string(),
+        message,
+    };
     let http = reqwest::Client::builder()
         .user_agent(crate::universalis::USER_AGENT)
         .timeout(std::time::Duration::from_secs(120))
@@ -109,13 +114,22 @@ fn resolve(cfg: &Config, cache: &Cache) -> Result<Resolved, RunError> {
         .collect::<Result<Vec<_>, _>>()?;
     let mut seen = HashSet::new();
     let unique_ids = ids.iter().copied().filter(|id| seen.insert(*id)).collect();
-    Ok(Resolved { home_world_id, ids, unique_ids })
+    Ok(Resolved {
+        home_world_id,
+        ids,
+        unique_ids,
+    })
 }
 
-pub async fn check(cfg: &Config, cache: &Cache, client: &Client) -> Result<Vec<CheckRow>, RunError> {
+pub async fn check(
+    cfg: &Config,
+    cache: &Cache,
+    client: &Client,
+) -> Result<Vec<CheckRow>, RunError> {
     let r = resolve(cfg, cache)?;
     let batch = client.aggregated(&cfg.home_world, &r.unique_ids).await?;
-    let by_id: HashMap<u32, &ItemAggregate> = batch.results.iter().map(|a| (a.item_id, a)).collect();
+    let by_id: HashMap<u32, &ItemAggregate> =
+        batch.results.iter().map(|a| (a.item_id, a)).collect();
 
     Ok(cfg
         .watch
@@ -134,7 +148,9 @@ pub async fn check(cfg: &Config, cache: &Cache, client: &Client) -> Result<Vec<C
                     .and_then(|id| cache.world_name(id))
                     .map(str::to_string),
                 avg_sale: q.and_then(|q| q.average_sale_price.world).map(|p| p.price),
-                velocity: q.and_then(|q| q.daily_sale_velocity.world).map(|v| v.quantity),
+                velocity: q
+                    .and_then(|q| q.daily_sale_velocity.world)
+                    .map(|v| v.quantity),
             }
         })
         .collect())
@@ -178,7 +194,11 @@ pub fn render_table(cfg: &Config, rows: &[CheckRow], color: bool) -> String {
         table.force_no_tty();
     }
     let title = format!("{} → {}", cfg.home_world, cfg.data_center);
-    let title = if color { title.bold().to_string() } else { title };
+    let title = if color {
+        title.bold().to_string()
+    } else {
+        title
+    };
     format!("{title}\n{table}")
 }
 
@@ -192,12 +212,20 @@ pub async fn poll_once(
 ) -> Result<PollReport, RunError> {
     let r = resolve(cfg, cache)?;
     let batch = client.aggregated(&cfg.home_world, &r.unique_ids).await?;
-    let by_id: HashMap<u32, &ItemAggregate> = batch.results.iter().map(|a| (a.item_id, a)).collect();
-    let mut report = PollReport { failed_items: batch.failed_items.clone(), ..Default::default() };
+    let by_id: HashMap<u32, &ItemAggregate> =
+        batch.results.iter().map(|a| (a.item_id, a)).collect();
+    let mut report = PollReport {
+        failed_items: batch.failed_items.clone(),
+        ..Default::default()
+    };
 
     for (w, &item_id) in cfg.watch.iter().zip(&r.ids) {
-        let Some(stats) = by_id.get(&item_id) else { continue };
-        let Some(mut alert) = evaluate(w, item_id, stats, r.home_world_id) else { continue };
+        let Some(stats) = by_id.get(&item_id) else {
+            continue;
+        };
+        let Some(mut alert) = evaluate(w, item_id, stats, r.home_world_id) else {
+            continue;
+        };
         let key = State::key(item_id, alert.hq, alert.world_id);
         if !state.should_alert(&key, alert.price, now, cfg.cooldown) {
             continue;
@@ -208,7 +236,9 @@ pub async fn poll_once(
         let listings = match client.listings(&cfg.data_center, item_id, alert.hq).await {
             Ok(l) => l,
             Err(e) => {
-                report.warnings.push(format!("listing lookup for {} failed: {e}", w.item));
+                report
+                    .warnings
+                    .push(format!("listing lookup for {} failed: {e}", w.item));
                 Vec::new()
             }
         };
@@ -218,7 +248,9 @@ pub async fn poll_once(
                 report.sent.push(alert);
             }
             Ok(_) => report.warnings.push("no webhook targets configured".into()),
-            Err(e) => report.warnings.push(format!("notification for {} failed: {e}", w.item)),
+            Err(e) => report
+                .warnings
+                .push(format!("notification for {} failed: {e}", w.item)),
         }
     }
     Ok(report)

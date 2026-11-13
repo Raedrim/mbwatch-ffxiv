@@ -56,7 +56,10 @@ pub fn evaluate(
     if let (Some(margin), Some(h), Some(d)) = (item.arbitrage_margin, home, dc) {
         let frac = savings_fraction(h.price, d.price);
         if frac >= margin {
-            reasons.push(Reason::Arbitrage { margin, savings_pct: frac * 100.0 });
+            reasons.push(Reason::Arbitrage {
+                margin,
+                savings_pct: frac * 100.0,
+            });
         }
     }
     if reasons.is_empty() {
@@ -80,7 +83,12 @@ mod tests {
     use serde_json::json;
 
     fn watch(hq: bool, below: Option<u64>, margin: Option<f64>) -> WatchItem {
-        WatchItem { item: "Moqueca".into(), hq, alert_below: below, arbitrage_margin: margin }
+        WatchItem {
+            item: "Moqueca".into(),
+            hq,
+            alert_below: below,
+            arbitrage_margin: margin,
+        }
     }
 
     fn stats(v: serde_json::Value) -> ItemAggregate {
@@ -118,7 +126,8 @@ mod tests {
 
     #[test]
     fn missing_quality_block_yields_none() {
-        let s = stats(json!({"itemId": 1, "nq": {"minListing": {"dc": {"price": 1, "worldId": 2}}}}));
+        let s =
+            stats(json!({"itemId": 1, "nq": {"minListing": {"dc": {"price": 1, "worldId": 2}}}}));
         assert!(evaluate(&watch(true, Some(1_000_000), None), 1, &s, 33).is_none());
     }
 
@@ -127,7 +136,10 @@ mod tests {
         // (2000-1500)/2000 = 0.25 exactly
         let a = evaluate(&watch(true, None, Some(0.25)), 1, &both(), 33).unwrap();
         match &a.reasons[0] {
-            Reason::Arbitrage { margin, savings_pct } => {
+            Reason::Arbitrage {
+                margin,
+                savings_pct,
+            } => {
                 assert_eq!(*margin, 0.25);
                 assert!((savings_pct - 25.0).abs() < 1e-9);
             }
@@ -151,13 +163,16 @@ mod tests {
 
     #[test]
     fn arbitrage_needs_both_world_and_dc_prices() {
-        let s = stats(json!({"itemId": 1, "hq": {"minListing": {"dc": {"price": 10, "worldId": 2}}}}));
+        let s =
+            stats(json!({"itemId": 1, "hq": {"minListing": {"dc": {"price": 10, "worldId": 2}}}}));
         assert!(evaluate(&watch(true, None, Some(0.1)), 1, &s, 33).is_none());
     }
 
     #[test]
     fn falls_back_to_world_price_when_dc_missing() {
-        let s = stats(json!({"itemId": 1, "hq": {"minListing": {"world": {"price": 10, "worldId": 33}}}}));
+        let s = stats(
+            json!({"itemId": 1, "hq": {"minListing": {"world": {"price": 10, "worldId": 33}}}}),
+        );
         let a = evaluate(&watch(true, Some(100), None), 1, &s, 33).unwrap();
         assert_eq!((a.price, a.world_id), (10, 33));
     }

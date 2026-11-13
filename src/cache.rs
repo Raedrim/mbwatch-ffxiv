@@ -43,7 +43,12 @@ impl Cache {
         worlds: HashMap<u32, String>,
         data_centers: Vec<DataCenter>,
     ) -> Self {
-        let mut c = Cache { items, worlds, data_centers, name_index: HashMap::new() };
+        let mut c = Cache {
+            items,
+            worlds,
+            data_centers,
+            name_index: HashMap::new(),
+        };
         c.rebuild_index();
         c
     }
@@ -79,7 +84,9 @@ impl Cache {
     }
 
     pub fn data_center(&self, name: &str) -> Option<&DataCenter> {
-        self.data_centers.iter().find(|d| d.name.eq_ignore_ascii_case(name.trim()))
+        self.data_centers
+            .iter()
+            .find(|d| d.name.eq_ignore_ascii_case(name.trim()))
     }
 
     /// Atomically write to `<dir>/cache.json` (temp file + rename).
@@ -112,9 +119,16 @@ mod tests {
 
     fn sample() -> Cache {
         Cache::new(
-            HashMap::from([(1, "Moqueca".to_string()), (2, "Grade 2 Gemdraught of Strength".to_string())]),
+            HashMap::from([
+                (1, "Moqueca".to_string()),
+                (2, "Grade 2 Gemdraught of Strength".to_string()),
+            ]),
             HashMap::from([(21, "Ravana".to_string()), (33, "Phoenix".to_string())]),
-            vec![DataCenter { name: "Light".into(), region: "Europe".into(), worlds: vec![33] }],
+            vec![DataCenter {
+                name: "Light".into(),
+                region: "Europe".into(),
+                worlds: vec![33],
+            }],
         )
     }
 
@@ -138,7 +152,10 @@ mod tests {
         assert_eq!(c.world_name(33), Some("Phoenix"));
         assert_eq!(c.world_name(999), None);
         assert_eq!(c.world_id("phoenix").unwrap(), 33);
-        assert!(matches!(c.world_id("Narnia"), Err(CacheError::UnknownWorld(_))));
+        assert!(matches!(
+            c.world_id("Narnia"),
+            Err(CacheError::UnknownWorld(_))
+        ));
     }
 
     #[test]
@@ -174,14 +191,20 @@ mod tests {
     #[test]
     fn load_missing_is_typed_error() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(matches!(Cache::load(dir.path()), Err(CacheError::Missing(_))));
+        assert!(matches!(
+            Cache::load(dir.path()),
+            Err(CacheError::Missing(_))
+        ));
     }
 
     #[test]
     fn load_corrupt_is_typed_error() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("cache.json"), "{not json").unwrap();
-        assert!(matches!(Cache::load(dir.path()), Err(CacheError::Corrupt(_))));
+        assert!(matches!(
+            Cache::load(dir.path()),
+            Err(CacheError::Corrupt(_))
+        ));
     }
 
     #[test]

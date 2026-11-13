@@ -19,7 +19,7 @@ pub fn format_gil(n: u64) -> String {
     let digits = n.to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
     for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i) % 3 == 0 {
+        if i > 0 && (digits.len() - i).is_multiple_of(3) {
             out.push(',');
         }
         out.push(c);
@@ -36,7 +36,10 @@ fn title(alert: &Alert) -> String {
 }
 
 fn world_label(alert: &Alert) -> String {
-    alert.world_name.clone().unwrap_or_else(|| format!("world {}", alert.world_id))
+    alert
+        .world_name
+        .clone()
+        .unwrap_or_else(|| format!("world {}", alert.world_id))
 }
 
 fn stack_lines(listings: &[Listing]) -> Vec<String> {
@@ -56,7 +59,10 @@ fn stack_lines(listings: &[Listing]) -> Vec<String> {
 fn savings_line(alert: &Alert) -> Option<String> {
     alert.reasons.iter().find_map(|r| match r {
         Reason::Arbitrage { savings_pct, .. } => Some(match alert.home_price {
-            Some(h) => format!("{savings_pct:.1}% cheaper than home world ({} gil)", format_gil(h)),
+            Some(h) => format!(
+                "{savings_pct:.1}% cheaper than home world ({} gil)",
+                format_gil(h)
+            ),
             None => format!("{savings_pct:.1}% cheaper than home world"),
         }),
         _ => None,
@@ -95,7 +101,10 @@ pub fn telegram_text(alert: &Alert, listings: &[Listing]) -> String {
     for l in stack_lines(listings) {
         t.push_str(&format!("\n• {l}"));
     }
-    t.push_str(&format!("\nhttps://universalis.app/market/{}", alert.item_id));
+    t.push_str(&format!(
+        "\nhttps://universalis.app/market/{}",
+        alert.item_id
+    ));
     t
 }
 
@@ -113,7 +122,11 @@ impl Notifier {
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .unwrap_or_default();
-        Notifier { http, discord, telegram }
+        Notifier {
+            http,
+            discord,
+            telegram,
+        }
     }
 
     pub fn has_targets(&self) -> bool {
@@ -126,7 +139,10 @@ impl Notifier {
         if status.is_success() {
             Ok(())
         } else {
-            Err(NotifyError::Status { target, status: status.as_u16() })
+            Err(NotifyError::Status {
+                target,
+                status: status.as_u16(),
+            })
         }
     }
 
@@ -142,10 +158,17 @@ impl Notifier {
             }
         };
         if let Some(url) = &self.discord {
-            record(self.post("Discord", url, &discord_payload(alert, listings)).await);
+            record(
+                self.post("Discord", url, &discord_payload(alert, listings))
+                    .await,
+            );
         }
         if let Some(tg) = &self.telegram {
-            let url = format!("{}/bot{}/sendMessage", tg.api_base.trim_end_matches('/'), tg.bot_token);
+            let url = format!(
+                "{}/bot{}/sendMessage",
+                tg.api_base.trim_end_matches('/'),
+                tg.bot_token
+            );
             let body = json!({"chat_id": tg.chat_id, "text": telegram_text(alert, listings)});
             record(self.post("Telegram", &url, &body).await);
         }
@@ -174,15 +197,28 @@ mod tests {
             home_price: Some(3000),
             reasons: vec![
                 Reason::Below { threshold: 1800 },
-                Reason::Arbitrage { margin: 0.25, savings_pct: 41.666 },
+                Reason::Arbitrage {
+                    margin: 0.25,
+                    savings_pct: 41.666,
+                },
             ],
         }
     }
 
     fn listings() -> Vec<Listing> {
         vec![
-            Listing { price_per_unit: 1750, quantity: 12, world_name: Some("Ravana".into()), hq: true },
-            Listing { price_per_unit: 1800, quantity: 3, world_name: Some("Phoenix".into()), hq: true },
+            Listing {
+                price_per_unit: 1750,
+                quantity: 12,
+                world_name: Some("Ravana".into()),
+                hq: true,
+            },
+            Listing {
+                price_per_unit: 1800,
+                quantity: 3,
+                world_name: Some("Phoenix".into()),
+                hq: true,
+            },
         ]
     }
 
@@ -200,7 +236,15 @@ mod tests {
         let e = &v["embeds"][0];
         assert_eq!(e["title"], "Moqueca (HQ)");
         let fields = e["fields"].as_array().unwrap();
-        let get = |n: &str| fields.iter().find(|f| f["name"] == n).unwrap_or_else(|| panic!("no field {n}"))["value"].as_str().unwrap().to_string();
+        let get = |n: &str| {
+            fields
+                .iter()
+                .find(|f| f["name"] == n)
+                .unwrap_or_else(|| panic!("no field {n}"))["value"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
         assert_eq!(get("World"), "Ravana");
         assert_eq!(get("Unit price"), "1,750 gil");
         let stacks = get("Stacks");
@@ -220,7 +264,12 @@ mod tests {
         let v = discord_payload(&a, &[]);
         let e = &v["embeds"][0];
         assert_eq!(e["title"], "Moqueca");
-        let names: Vec<_> = e["fields"].as_array().unwrap().iter().map(|f| f["name"].as_str().unwrap()).collect();
+        let names: Vec<_> = e["fields"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| f["name"].as_str().unwrap())
+            .collect();
         assert_eq!(names, vec!["World", "Unit price"]);
     }
 
@@ -237,7 +286,9 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/hook"))
-            .and(body_partial_json(serde_json::json!({"embeds": [{"title": "Moqueca (HQ)"}]})))
+            .and(body_partial_json(
+                serde_json::json!({"embeds": [{"title": "Moqueca (HQ)"}]}),
+            ))
             .respond_with(ResponseTemplate::new(204))
             .expect(1)
             .mount(&server)
@@ -257,7 +308,11 @@ mod tests {
             .expect(1)
             .mount(&server)
             .await;
-        let tg = TelegramConfig { bot_token: "TOKEN".into(), chat_id: "42".into(), api_base: server.uri() };
+        let tg = TelegramConfig {
+            bot_token: "TOKEN".into(),
+            chat_id: "42".into(),
+            api_base: server.uri(),
+        };
         let n = Notifier::new(None, Some(tg));
         assert_eq!(n.send(&alert(), &[]).await.unwrap(), 1);
     }
@@ -265,19 +320,35 @@ mod tests {
     #[tokio::test]
     async fn http_5xx_is_propagated() {
         let server = MockServer::start().await;
-        Mock::given(method("POST")).respond_with(ResponseTemplate::new(500)).mount(&server).await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(500))
+            .mount(&server)
+            .await;
         let n = Notifier::new(Some(format!("{}/hook", server.uri())), None);
         let e = n.send(&alert(), &[]).await.unwrap_err();
-        assert!(matches!(e, NotifyError::Status { status: 500, .. }), "{e:?}");
+        assert!(
+            matches!(e, NotifyError::Status { status: 500, .. }),
+            "{e:?}"
+        );
     }
 
     #[tokio::test]
     async fn partial_failure_still_counts_success() {
         let ok = MockServer::start().await;
         let bad = MockServer::start().await;
-        Mock::given(method("POST")).respond_with(ResponseTemplate::new(204)).mount(&ok).await;
-        Mock::given(method("POST")).respond_with(ResponseTemplate::new(502)).mount(&bad).await;
-        let tg = TelegramConfig { bot_token: "T".into(), chat_id: "1".into(), api_base: bad.uri() };
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(204))
+            .mount(&ok)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(502))
+            .mount(&bad)
+            .await;
+        let tg = TelegramConfig {
+            bot_token: "T".into(),
+            chat_id: "1".into(),
+            api_base: bad.uri(),
+        };
         let n = Notifier::new(Some(format!("{}/h", ok.uri())), Some(tg));
         assert_eq!(n.send(&alert(), &[]).await.unwrap(), 1);
     }

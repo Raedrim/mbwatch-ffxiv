@@ -26,3 +26,7 @@ docker run -d -v mbwatch-data:/data -v $PWD/watchlist.yaml:/watchlist.yaml:ro \
 ## Development
 
 Built test-first: `cargo test` (unit + wiremock integration + `assert_cmd` end-to-end), `cargo clippy --all-targets -- -D warnings`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

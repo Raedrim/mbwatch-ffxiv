@@ -1,0 +1,42 @@
+# Maintainer: Raedrim <43709947+Raedrim@users.noreply.github.com>
+pkgname=mbwatch-ffxiv
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Headless FFXIV Market Board CLI and alert daemon powered by Universalis"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Raedrim/mbwatch-ffxiv"
+license=('MIT')
+depends=('gcc-libs')
+makedepends=('cargo')
+# makepkg's default -flto makes ring's C/asm objects unreadable to lld (undefined ring_core_* symbols)
+options=('!lto')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# Replace with the real checksum (`updpkgsums`) once the v$pkgver tag exists.
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/mbwatch "$pkgdir/usr/bin/mbwatch"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 watchlist.example.yaml "$pkgdir/usr/share/doc/$pkgname/watchlist.example.yaml"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

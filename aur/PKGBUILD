@@ -8,6 +8,8 @@ url="https://github.com/Raedrim/mbwatch-ffxiv"
 license=('MIT')
 depends=('gcc-libs')
 makedepends=('cargo')
+# makepkg's default -flto makes ring's C/asm objects unreadable to lld (undefined ring_core_* symbols)
+options=('!lto')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 # Replace with the real checksum (`updpkgsums`) once the v$pkgver tag exists.
 sha256sums=('SKIP')

@@ -28,7 +28,7 @@ pub struct Cli {
     #[arg(long, global = true, env = "MBWATCH_CACHE_DIR")]
     pub cache_dir: Option<PathBuf>,
 
-    /// Alert de-duplication state file [default: <cache-dir>/state.json]
+    /// Alert de-duplication state file [default: state.json inside the cache dir]
     #[arg(long, global = true, env = "MBWATCH_STATE_FILE")]
     pub state_file: Option<PathBuf>,
 

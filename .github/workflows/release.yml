@@ -125,6 +125,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: mbwatch-*   # binaries only; skips the docker buildx *.dockerbuild record
           merge-multiple: true
       - name: Publish GitHub release for the Cargo.toml version
         env:

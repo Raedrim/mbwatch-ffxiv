@@ -18,9 +18,9 @@ Paths and endpoints are overridable for testing and containers: `--cache-dir`, `
 ## Docker
 
 ```sh
-docker run --rm -v mbwatch-data:/data ghcr.io/OWNER/mbwatch update-db
+docker run --rm -v mbwatch-data:/data ghcr.io/raedrim/mbwatch update-db
 docker run -d -v mbwatch-data:/data -v $PWD/watchlist.yaml:/watchlist.yaml:ro \
-  -e DISCORD_WEBHOOK_URL ghcr.io/OWNER/mbwatch watch --config /watchlist.yaml
+  -e DISCORD_WEBHOOK_URL ghcr.io/raedrim/mbwatch watch --config /watchlist.yaml
 ```
 
 ## Development
